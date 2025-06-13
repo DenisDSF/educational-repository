@@ -1,11 +1,12 @@
-def find_words(word_list):
+def find_words(word_list, max_word_length):
     text = ''
     for i in word_list:
-        if len(i) < 5:
+        if len(i) < max_word_length:
             text += i + ' '
     return text
 
 
+max_word_length = 5
 s = '''Было просто пасмурно, дуло с севера
  А к обеду насчитал сто градаций серого.
  Так всегда первого ноль девятого
@@ -20,4 +21,4 @@ s = '''Было просто пасмурно, дуло с севера
 s = s.replace(',', '').replace('.', '').replace('!', '').replace('-', '')
 word_list = s.split()
 
-print(find_words(word_list))
+print(find_words(word_list, max_word_length))
