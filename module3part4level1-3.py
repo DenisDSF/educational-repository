@@ -18,6 +18,7 @@ def register(login, password):
         user_data[login] = password
         with open('user_data.json', 'w') as f:
             json.dump(user_data, f)
+        return True
 
 
 def logging_in(login, password):
@@ -35,12 +36,12 @@ while True:
     if user_choice == 'регистрация':
         login = input('Введите логин: ')
         password = input('Введите пароль: ')
-        if register(login, password) == False:
+        if not register(login, password):
             print('Пользователь с таким логином уже существует.')
     elif user_choice == 'вход':
         login = input('Введите логин: ')
         password = input('Введите пароль: ')
-        if logging_in(login, password) == True:
+        if logging_in(login, password):
             print('Вы вошли!')
             break
         else:
