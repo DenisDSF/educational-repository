@@ -10,8 +10,8 @@ class Warrior():
     def attack(self):
         return self.damage
 
-    def get_damage(self, damage):
-        self.health_point -= damage
+    def get_damage(self, incoming_damage):
+        self.health_point -= incoming_damage
 
 
 warriors_health_points = 100
