@@ -7,8 +7,11 @@ class Warrior():
         self.health_point = health_point
         self.damage = damage
 
-    def attack(self, other):
-        other.health_point -= self.damage
+    def attack(self):
+        return self.damage
+
+    def get_damage(self, damage):
+        self.health_point -= damage
 
 
 warriors_health_points = 100
@@ -23,9 +26,9 @@ while True:
         num = random.randint(0, 1)
         attacker = dueling_warriors.pop(num)
         defender = dueling_warriors.pop()
-        attacker.attack(defender)
+        defender.get_damage(attacker.attack())
         print(f'В раунде {round_num} атакует {attacker.name}, нанося'
-              f' 20 едениц урона, теперь у {defender.name} - '
+              f' {attacker.damage} едениц урона, теперь у {defender.name} - '
               f'{defender.health_point} очков здоровья!')
     else:
         print(f'{attacker.name} побеждает в {round_num} раунде!')
