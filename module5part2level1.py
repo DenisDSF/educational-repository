@@ -27,5 +27,5 @@ class Book(Model):
 book1_title = 'Титул'
 book1_text_sample = 'Текст'
 book1_author = 'Автор'
-book_1  = Book(book1_title, book1_text_sample, book1_author)
+book_1 = Book(book1_title, book1_text_sample, book1_author)
 book_1.save()
