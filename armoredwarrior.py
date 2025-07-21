@@ -22,7 +22,7 @@ class ArmoredWarrior():
         self.__action = ''
         self.__status = 'alive'
 
-    def get_action(self, action):
+    def set_action(self, action):
         self.__action = action
 
     def attack(self):
@@ -39,33 +39,34 @@ class ArmoredWarrior():
         return [self.__damage, self.__armor_damage]
 
     def get_damage(self, damage):
-        if self.__action == 'defend' and self.__armor_durability > 0:
+        if self.__action == 'At death\'s door':
+            self.__health_point = 0
+            self.__status = 'dead'
+        elif self.__action == 'defend' and self.__armor_durability > 0:
             damage_reduction = self.defend()
             self.__health_point = self.__health_point - (damage.pop(0)
                                                      - damage_reduction)
             self.__armor_durability -= damage.pop()
         else:
             self.__health_point -= damage.pop(0)
+        if self.__health_point <= 0:
+            self.__status = 'dead'
+        return self.__health_point
 
     def defend(self):
         return self.__base_damage_reduction + self.__armor_damage_reduction
 
-    def get_status(self, status):
-        self.__status = status
-        if self.__status == 'dead':
-            self.__health_point = 0
-
-    def report_action(self):
+    def get_action(self):
         return self.__action
 
-    def report_name(self):
+    def get_name(self):
         return self.__name
 
-    def report_health_point(self):
+    def get_health_point(self):
         return self.__health_point
 
-    def report_armor_durability(self):
+    def get_armor_durability(self):
         return self.__armor_durability
 
-    def report_endurance(self):
+    def get_endurance(self):
         return self.__endurance
