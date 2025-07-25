@@ -1,6 +1,5 @@
 import time
 import requests
-import os
 from multiprocessing.pool import ThreadPool
 
 
@@ -13,7 +12,7 @@ urls = ['https://www.google.com', 'https://www.python.org',
         'https://www.rambler.ru', 'https://www.mail.ru',
         'https://www.github.com']
 start_time = time.time()
-with ThreadPool(os.cpu_count()) as executor:
+with ThreadPool(len(urls)) as executor:
     response = executor.map(get_html_info, urls)
 for element in response:
     print(f'Количество символов на странице {element.url} составляет {len(element.text)}')
