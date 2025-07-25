@@ -7,6 +7,7 @@ def thread_starting_time(thread_name):
     time.sleep(1)
     threading.current_thread().return_value = thread_name
 
+
 names_pool = ['мыслей', 'сознания', 'воображения', 'рассуждений', 'словесный']
 start_time = time.time()
 threads = [threading.Thread(target=thread_starting_time, name=name,
