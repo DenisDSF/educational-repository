@@ -65,14 +65,14 @@ class SeparatedTag(AbstractTagSeparator):
         return self.found_tag
 
 class InterestedInfoFinder(AbstractInterestedInfoFinder):
-    def __init__(self, separated_tag, interested_info_parent_tag,
+    def __init__(self, separated_tag, interested_info_tag,
                  date_start_str,
                  exchange_rate_start):
-        self.interested_info_parent_tag = interested_info_parent_tag
+        self.interested_info_tag = interested_info_tag
         self.date_start_str = date_start_str
         self.exchange_rate_start = exchange_rate_start
         self.currency_list = []
-        for tag in separated_tag.find_all(self.interested_info_parent_tag):
+        for tag in separated_tag.find_all(self.interested_info_tag):
             self.temp_list = [None, None]
             temp_tag = tag
             for string in temp_tag.stripped_strings:
