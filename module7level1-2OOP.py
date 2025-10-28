@@ -1,3 +1,4 @@
+from __future__ import annotations
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -5,163 +6,146 @@ import matplotlib.pyplot as plt
 import datetime
 from abc import ABC, abstractmethod
 
-class AbstractDataPuller(ABC):
+class RequestHtmlInterface(ABC):
     @abstractmethod
-    def get_text(self):
-        pass
+    def get_raw_data(self):
+        raise NotImplementedError
 
+class DataExtractorInterface(ABC):
     @abstractmethod
-    def get_data(self):
-        pass
+    def extract_currency_timeline(self, raw_data) -> CurrencyTimeline:
+        raise NotImplementedError
 
-class AbstractTagSeparator(ABC):
+class ExchangeRatesInformer(ABC):
     @abstractmethod
-    def get_separated_tag(self):
-        pass
-
-class AbstractInterestedInfoFinder(ABC):
-    @abstractmethod
-    def get_interested_info(self):
-        pass
-
-class AbstractDataInformer(ABC):
-    @abstractmethod
-    def print_data(self):
-        pass
+    def print_data(currency, crawler):
+        raise NotImplementedError
 
 class AbstractGraphPlotter(ABC):
     @abstractmethod
-    def plot_graph(self):
-        pass
+    def plot_graph(currency, crawler):
+        raise NotImplementedError
 
-class SoupObject(AbstractDataPuller):
-    def __init__(self, url, parser):
-        self.url = url
-        self.parser = parser
-        self.response = requests.get(self.url)
-        self.soup = BeautifulSoup(self.response.text, self.parser)
+class CurrencyTimeRate:
+    def __init__(self, date_at: date, rate: Decimal):
+        self.__date_at = date_at
+        self.__rate = rate
 
-    def get_text(self):
-        return self.soup.text
+    @property
+    def date(self):
+        return self.__date_at
 
-    def get_data(self):
-        return self.soup
+    @property
+    def rate(self):
+        return self.__rate
 
-class SeparatedTag(AbstractTagSeparator):
-    def __init__(self, soup_object, interesting_tag, **kwargs):
-        self.interesting_tag = interesting_tag
-        self.kwargs = {
-            'class': kwargs.get('tag_class', None),
-            'id': kwargs.get('id', None),
-            'method': kwargs.get('method', None),
-            'action': kwargs.get('action', None)
-        }
-        self.kwargs = {key: value for key, value in self.kwargs.items()
-                       if value is not None}
-        self.found_tag = soup_object.get_data().find(self.interesting_tag,
-                                                     self.kwargs)
+class CurrencyTimeline:
+    def __init__(self, currency: str, rates: list[CurrencyTimeRate]):
+        self.__currency = currency
+        self.__rates = rates
 
-    def get_separated_tag(self):
-        return self.found_tag
+    @property
+    def currency(self):
+        return self.__currency
 
-class InterestedInfoFinder(AbstractInterestedInfoFinder):
-    def __init__(self, separated_tag, interested_info_tag,
-                 date_start_str,
-                 exchange_rate_start):
-        self.interested_info_tag = interested_info_tag
-        self.date_start_str = date_start_str
-        self.exchange_rate_start = exchange_rate_start
-        self.currency_list = []
-        for tag in separated_tag.find_all(self.interested_info_tag):
-            self.temp_list = [None, None]
+    @property
+    def rates(self):
+        return self.__rates
+
+class CurrencyCrawler:
+    def __init__(self, request, extractor):
+        self.__request = request
+        self.__extractor = extractor
+        self.__all_timelines = {}
+
+    def run(self):
+        raw_data = self.__request.get_raw_data()
+        timeline = self.__extractor.extract_currency_timeline(raw_data)
+        self.__all_timelines[timeline.currency] = timeline
+
+    @property
+    def timelines(self):
+        return self.__all_timelines
+
+class MfdRequest(RequestHtmlInterface):
+    def get_raw_data(self):
+        response = requests.get('https://mfd.ru/currency/?currency=USD')
+        soup = BeautifulSoup(response.text, 'lxml')
+        return soup
+
+class MfdExtractor(DataExtractorInterface):
+    def extract_currency_timeline(self, raw_data) -> CurrencyTimeline:
+        table_tag = 'table'
+        table_tag_class = 'mfd-currency-table'
+        currency_info_tag = 'tr'
+        date_start_str = 'с '
+        exchange_rate_start = ('0', '1', '2', '3', '4', '5', '6', '7', '8',
+                               '9')
+        found_tag = raw_data.find(table_tag, {'class': table_tag_class})
+        currency_list = []
+        for tag in found_tag.find_all(currency_info_tag):
+            temp_list = [None, None]
             temp_tag = tag
             for string in temp_tag.stripped_strings:
                 if string.startswith(date_start_str):
-                    date = re.sub(date_start_str, '', string)
-                    self.temp_list[0] = date
-                elif string.startswith(self.exchange_rate_start):
-                    self.temp_list[1] = float(string)
-            if self.temp_list[0] is not None:
-                self.currency_list.append(self.temp_list)
+                    date_str = re.sub(date_start_str, '', string)
+                    date = datetime.datetime.strptime(date_str,
+                                                      '%d.%m.%Y').date()
+                    temp_list[0] = date
+                elif string.startswith(exchange_rate_start):
+                    temp_list[1] = float(string)
+            if temp_list[0] is not None:
+                currency_list.append(temp_list)
+        currency_time_rate_list = [CurrencyTimeRate(date, rate)
+                                   for date, rate in currency_list]
+        timeline = CurrencyTimeline('USD', currency_time_rate_list)
+        return timeline
 
-    def get_interested_info(self):
-        return self.currency_list
+class TablePrinter(ExchangeRatesInformer):
+    def print_data(currency: str, crawler: CurrencyCrawler):
+        have_forecast = False
+        today = datetime.date.today()
+        all_timelines = crawler.timelines
+        timeline_to_print = all_timelines.get(currency)
+        rates_list = timeline_to_print.rates
+        if rates_list[0].date > today:
+            have_forecast = True
+        if have_forecast:
+            print(f'Прогнозируемый курс {currency} на {rates_list[0].date} '
+                  f'составляет {rates_list[0].rate} рублей.')
+            for i in rates_list[1:]:
+                print(f'Курс {currency} на {i.date} составляет {i.rate} '
+                      f'рублей.')
+        else:
+            for i in rates_list:
+                print(f'Курс {currency} на {i.date} составляет {i.rate} '
+                      f'рублей.')
 
-class ExchangeRatesInformer(AbstractDataInformer):
-    def __init__(self, currency_list):
-        self.currency_list = []
-        self.currency_list += currency_list
-        self.today = datetime.date.today()
-        self.last_date = self.currency_list[0]
-        self.have_forecast = False
-
-    def print_data(self):
-        if (datetime.datetime.strptime(self.last_date[0], '%d.%m.%Y')).date() > self.today:
-            self.have_forecast = True
-        if self.have_forecast:
-            self.forecast = self.currency_list.pop(0)
-            print(f'Прогнозируемый курс доллара на {self.forecast[0]} составляет '
-                  f'{self.forecast[1]} рублей.')
-        for i in self.currency_list:
-            print(f'Курс доллара на {i[0]} составляет {i[1]} рублей.')
-
-class ExchangeRatesGraphPlotter(AbstractGraphPlotter):
-    def __init__(self, currency_list):
-        self.currency_list = []
-        self.currency_list += currency_list
-        self.today = datetime.date.today()
-        self.last_date = self.currency_list[0]
-        if (datetime.datetime.strptime(self.last_date[0], '%d.%m.%Y')).date() > self.today:
-            del self.currency_list[0]
-        self.currency_list.reverse()
-    def plot_graph(self):
-        self.x_list = []
-        self.y_list = []
-        for i in self.currency_list:
-            self.x_list.append(i[0])
-            self.y_list.append(i[1])
+class GraphPlotter(AbstractGraphPlotter):
+    def plot_graph(currency: str, crawler: CurrencyCrawler):
+        today = datetime.date.today()
+        all_timelines = crawler.timelines
+        timeline_to_plot = all_timelines.get(currency)
+        rates_list = timeline_to_plot.rates
+        end_rate_list = None
+        if rates_list[0].date > today:
+            end_rate_list = 0
+        x_list = []
+        y_list = []
+        for i in rates_list[-1: end_rate_list: -1]:
+            x = i.date.strftime('%d.%m.%Y')
+            x_list.append(x)
+            y_list.append(i.rate)
         plt.xlabel('Дата')
         plt.ylabel('Курс доллара')
         plt.ylabel('График курса доллара.')
-        plt.xticks(range(len(self.x_list) - 1, 0, -10), rotation='vertical')
+        plt.xticks(ticks=range(len(x_list) - 1, 0, -10), rotation='vertical')
         plt.grid(True)
-        plt.plot(self.x_list, self.y_list)
+        plt.plot(x_list, y_list)
         plt.show()
 
-url = 'https://mfd.ru/currency/?currency=USD'
-parser = 'lxml'
-soup = SoupObject(url, parser)
-
-table_tag = 'table'
-table_tag_class = 'mfd-currency-table'
-table_tag_id = None
-table_tag_method = None
-table_tag_action = None
-currency_table = SeparatedTag(soup, table_tag, tag_class=table_tag_class,
-                              id=table_tag_id, method=table_tag_method,
-                              action=table_tag_action)
-
-currency_info_tag = 'tr'
-date_start_str = 'с '
-exchange_rate_start = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
-currency_list = InterestedInfoFinder(currency_table.get_separated_tag(),
-                                     currency_info_tag, date_start_str,
-                                     exchange_rate_start)
-
-exchange_rate_informer = ExchangeRatesInformer(currency_list.get_interested_info())
-exchange_rate_informer.print_data()
-
-exchange_rate_graph = ExchangeRatesGraphPlotter(currency_list.get_interested_info())
-exchange_rate_graph.plot_graph()
-
-
-
-
-
-
-
-
-
-
-
-
+mfd_crawler = CurrencyCrawler(MfdRequest(), MfdExtractor())
+mfd_crawler.run()
+currency_to_print = 'USD'
+TablePrinter.print_data(currency_to_print, mfd_crawler)
+GraphPlotter.plot_graph(currency_to_print, mfd_crawler)

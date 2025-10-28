@@ -30,6 +30,7 @@ for tag in currency_table.find_all('tr'):
     currency_list.append(temp_list)
 
 last_date = currency_list[0]
+have_forecast = False
 if (datetime.datetime.strptime(last_date[0], '%d.%m.%Y')).date() > today:
     have_forecast = True
 
